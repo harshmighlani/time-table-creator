@@ -138,7 +138,7 @@
                 e.dataTransfer.effectAllowed = 'copyMove';
             };
 
-            // Allow dropping on grid cells
+            // Allow dropping on grid cells or day/time headers
             const handleDragOver = (e) => {
                 e.preventDefault(); // Necessary to allow drop
                 e.dataTransfer.dropEffect = 'copyMove';
@@ -170,6 +170,65 @@
                 // Reset dragged item ref
                 draggedItem.current = { id: null, source: null, originalDay: null, originalTime: null };
             };
+
+            // Handle drop onto a day header (to fill the whole day)
+            const handleDropOnDayHeader = (e, dayIdx) => {
+                e.preventDefault();
+                const activityId = draggedItem.current.id;
+                const source = draggedItem.current.source;
+                const originalDay = draggedItem.current.originalDay;
+                const originalTime = draggedItem.current.originalTime;
+
+                if (!activityId) return;
+
+                setTimetable(prevTimetable => {
+                    const newTimetable = [...prevTimetable.map(row => [...row])]; // Deep copy
+
+                    // Clear the original cell if dragging from the grid
+                    if (source === 'grid' && originalDay !== null && originalTime !== null) {
+                        newTimetable[originalDay][originalTime] = null;
+                    }
+
+                    // Fill all time slots for the dropped day with the activity
+                    for (let i = 0; i < formattedTimeSlots.length; i++) {
+                        newTimetable[dayIdx][i] = activityId;
+                    }
+                    return newTimetable;
+                });
+
+                // Reset dragged item ref
+                draggedItem.current = { id: null, source: null, originalDay: null, originalTime: null };
+            };
+
+            // Handle drop onto a time slot header (to fill the whole time slot across all days)
+            const handleDropOnTimeHeader = (e, timeIdx) => {
+                e.preventDefault();
+                const activityId = draggedItem.current.id;
+                const source = draggedItem.current.source;
+                const originalDay = draggedItem.current.originalDay;
+                const originalTime = draggedItem.current.originalTime;
+
+                if (!activityId) return;
+
+                setTimetable(prevTimetable => {
+                    const newTimetable = [...prevTimetable.map(row => [...row])]; // Deep copy
+
+                    // Clear the original cell if dragging from the grid
+                    if (source === 'grid' && originalDay !== null && originalTime !== null) {
+                        newTimetable[originalDay][originalTime] = null;
+                    }
+
+                    // Fill all days for the dropped time slot with the activity
+                    for (let i = 0; i < days.length; i++) {
+                        newTimetable[i][timeIdx] = activityId;
+                    }
+                    return newTimetable;
+                });
+
+                // Reset dragged item ref
+                draggedItem.current = { id: null, source: null, originalDay: null, originalTime: null };
+            };
+
 
             // Open modal to add a new activity
             const handleAddActivityClick = () => {
@@ -375,16 +434,21 @@
                                         null,
                                         React.createElement(
                                             'th',
-                                            { scope: 'col', className: 'px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-[100px] sticky left-0 bg-blue-100 z-10' },
+                                            {
+                                                scope: 'col',
+                                                className: 'px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-[100px] sticky left-0 bg-blue-100 z-10'
+                                            },
                                             'Time'
                                         ),
-                                        days.map(day =>
+                                        days.map((day, dayIdx) =>
                                             React.createElement(
                                                 'th',
                                                 {
                                                     key: day,
                                                     scope: 'col',
-                                                    className: 'px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase tracking-wider whitespace-nowrap'
+                                                    onDragOver: handleDragOver, // Make header droppable
+                                                    onDrop: (e) => handleDropOnDayHeader(e, dayIdx), // Handle drop on header
+                                                    className: 'px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase tracking-wider whitespace-nowrap hover:bg-blue-200 transition-colors duration-150' // Added hover effect
                                                 },
                                                 day
                                             )
@@ -400,7 +464,11 @@
                                             { key: timeIdx },
                                             React.createElement(
                                                 'td',
-                                                { className: 'px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white border-r border-gray-200 z-10' },
+                                                {
+                                                    className: 'px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white border-r border-gray-200 z-10 hover:bg-gray-100 transition-colors duration-150 cursor-pointer', // Added hover and cursor
+                                                    onDragOver: handleDragOver, // Make time header droppable
+                                                    onDrop: (e) => handleDropOnTimeHeader(e, timeIdx) // Handle drop on time header
+                                                },
                                                 time
                                             ),
                                             days.map((day, dayIdx) => {
