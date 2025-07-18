@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Holiday Timetable</title>
+    <title>My TimeTable</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter font -->
@@ -64,6 +64,10 @@
         .sticky-note:hover {
             --tw-rotate: 0deg; /* Straighten on hover */
         }
+        /* Class to hide rows for PDF export */
+        .hide-for-pdf {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -85,31 +89,34 @@
 
         // Main App Component
         const App = () => {
-            // Define days of the week and time slots
+            // Define days of the week
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            const timeSlots = [];
-            for (let i = 7; i <= 20; i++) { // 7 AM to 8 PM
-                timeSlots.push(`${i}:00 AM`);
-                if (i < 20) timeSlots.push(`${i}:30 AM`);
-            }
-            // Adjust AM/PM for clarity
-            const formattedTimeSlots = timeSlots.map(slot => {
-                const [hourStr, minuteStr] = slot.split(':');
-                let hour = parseInt(hourStr);
-                const minutes = minuteStr.split(' ')[0];
+
+            // Function to format 24-hour time to AM/PM
+            const formatTime = (hour24, minute) => {
+                let displayHour = hour24;
                 let ampm = 'AM';
-
-                if (hour >= 12) {
+                if (hour24 >= 12) {
                     ampm = 'PM';
-                    if (hour > 12) hour -= 12;
+                    if (hour24 > 12) displayHour = hour24 - 12;
                 }
-                if (hour === 0) hour = 12; // Midnight case
+                if (hour24 === 0) displayHour = 12; // Handle midnight (00:xx) as 12:xx AM
+                return displayHour + ':' + String(minute).padStart(2, '0') + ' ' + ampm;
+            };
 
-                return `${hour}:${minutes} ${ampm}`;
-            });
+            // Fixed time slots (8 AM to 8 PM)
+            const timeSlots = [];
+            for (let i = 8; i <= 20; i++) { // 8 AM to 8 PM
+                timeSlots.push({ raw: i + ':00', display: formatTime(i, 0) });
+                if (i < 20) { // Don't add 8:30 PM if 20:00 is the last full hour
+                    timeSlots.push({ raw: i + ':30', display: formatTime(i, 30) });
+                }
+            }
+            // Use timeSlots directly, no dynamic allTimeSlots state
+            const formattedTimeSlots = timeSlots.map(slot => slot.display);
 
             // State for the main timetable title
-            const [timetableTitle, setTimetableTitle] = React.useState('My TimeTable'); // Changed title here
+            const [timetableTitle, setTimetableTitle] = React.useState('My TimeTable');
 
             // State for all available activities
             const [activities, setActivities] = React.useState([
@@ -138,10 +145,11 @@
             // State for the timetable grid: timetable[dayIndex][timeSlotIndex] = activityId
             const [timetable, setTimetable] = React.useState(() => {
                 const initialTimetable = Array(days.length).fill(null).map(() =>
-                    Array(formattedTimeSlots.length).fill(null)
+                    Array(timeSlots.length).fill(null)
                 );
                 return initialTimetable;
             });
+
 
             // State for the activity modal
             const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -186,8 +194,7 @@
                 if (!activityId) return;
 
                 setTimetable(prevTimetable => {
-                    const newTimetable = [...prevTimetable.map(row => [...row])]; // Deep copy
-
+                    const newTimetable = prevTimetable.map(row => [...row]); // Deep copy
                     // Clear the original cell if dragging from the grid
                     if (source === 'grid' && originalDay !== null && originalTime !== null) {
                         newTimetable[originalDay][originalTime] = null;
@@ -213,7 +220,7 @@
                 if (!activityId) return;
 
                 setTimetable(prevTimetable => {
-                    const newTimetable = [...prevTimetable.map(row => [...row])]; // Deep copy
+                    const newTimetable = prevTimetable.map(row => [...row]); // Deep copy
 
                     // Clear the original cell if dragging from the grid
                     if (source === 'grid' && originalDay !== null && originalTime !== null) {
@@ -221,7 +228,7 @@
                     }
 
                     // Fill all time slots for the dropped day with the activity
-                    for (let i = 0; i < formattedTimeSlots.length; i++) {
+                    for (let i = 0; i < timeSlots.length; i++) {
                         newTimetable[dayIdx][i] = activityId;
                     }
                     return newTimetable;
@@ -242,7 +249,7 @@
                 if (!activityId) return;
 
                 setTimetable(prevTimetable => {
-                    const newTimetable = [...prevTimetable.map(row => [...row])]; // Deep copy
+                    const newTimetable = prevTimetable.map(row => [...row]); // Deep copy
 
                     // Clear the original cell if dragging from the grid
                     if (source === 'grid' && originalDay !== null && originalTime !== null) {
@@ -310,7 +317,7 @@
 
                 // Remove from timetable grid
                 setTimetable(prevTimetable => {
-                    const newTimetable = [...prevTimetable.map(row => [...row])];
+                    const newTimetable = prevTimetable.map(row => [...row]);
                     for (let i = 0; i < newTimetable.length; i++) {
                         for (let j = 0; j < newTimetable[i].length; j++) {
                             if (newTimetable[i][j] === activityId) {
@@ -326,7 +333,7 @@
             // Clear a specific cell on the grid (e.g., if user wants to remove an activity from a slot)
             const handleClearCell = (dayIdx, timeSlotIdx) => {
                 setTimetable(prevTimetable => {
-                    const newTimetable = [...prevTimetable.map(row => [...row])];
+                    const newTimetable = prevTimetable.map(row => [...row]);
                     newTimetable[dayIdx][timeSlotIdx] = null;
                     return newTimetable;
                 });
@@ -338,9 +345,31 @@
                     // Check if html2canvas and jsPDF are available globally
                     if (typeof window.html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
                         console.error('html2canvas or jsPDF not loaded. Please ensure their CDN links are included.');
-                        // In a real app, you would show a user-friendly message here.
                         return;
                     }
+
+                    // Identify blank rows (time slots)
+                    const rowsToHide = [];
+                    for (let timeIdx = 0; timeIdx < timeSlots.length; timeIdx++) {
+                        let isRowEmpty = true;
+                        for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+                            if (timetable[dayIdx] && timetable[dayIdx][timeIdx] !== null) {
+                                isRowEmpty = false;
+                                break;
+                            }
+                        }
+                        if (isRowEmpty) {
+                            rowsToHide.push(timeIdx);
+                        }
+                    }
+
+                    // Temporarily hide blank rows
+                    const tableRows = timetableRef.current.querySelectorAll('tbody tr');
+                    rowsToHide.forEach(timeIdx => {
+                        if (tableRows[timeIdx]) {
+                            tableRows[timeIdx].classList.add('hide-for-pdf');
+                        }
+                    });
 
                     // Temporarily adjust styles for better PDF rendering
                     const originalOverflow = timetableRef.current.style.overflowX;
@@ -363,18 +392,28 @@
                         const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
                         pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                        pdf.save('holiday_timetable.pdf');
+                        pdf.save('my_timetable.pdf'); // Changed filename
 
-                        // Restore original styles
+                        // Restore original styles and show hidden rows
                         timetableRef.current.style.overflowX = originalOverflow;
                         timetableRef.current.style.minWidth = originalMinW;
+                        rowsToHide.forEach(timeIdx => {
+                            if (tableRows[timeIdx]) {
+                                tableRows[timeIdx].classList.remove('hide-for-pdf');
+                            }
+                        });
                     }).catch(error => {
                         console.error('Error generating PDF:', error);
-                        // Restore original styles in case of error
+                        // Ensure styles are restored and rows are shown even on error
                         if (timetableRef.current) {
                             timetableRef.current.style.overflowX = originalOverflow;
                             timetableRef.current.style.minWidth = originalMinW;
                         }
+                        rowsToHide.forEach(timeIdx => {
+                            if (tableRows[timeIdx]) {
+                                tableRows[timeIdx].classList.remove('hide-for-pdf');
+                            }
+                        });
                     });
                 }
             };
@@ -451,7 +490,6 @@
                     React.createElement(
                         'div',
                         { className: 'lg:flex-1 overflow-x-auto bg-white p-6 rounded-xl shadow-lg border border-blue-200' },
-                        // Removed: React.createElement('h2', { className: 'text-2xl font-bold text-blue-700 mb-4' }, 'Your Timetable'),
                         React.createElement(
                             'div',
                             { ref: timetableRef, className: 'min-w-full inline-block align-middle' },
@@ -490,21 +528,22 @@
                                 React.createElement(
                                     'tbody',
                                     { className: 'bg-white divide-y divide-gray-200' },
-                                    formattedTimeSlots.map((time, timeIdx) =>
+                                    timeSlots.map((timeSlot, timeIdx) =>
                                         React.createElement(
                                             'tr',
-                                            { key: timeIdx },
+                                            { key: timeSlot.raw }, // Use raw time as key for stability
                                             React.createElement(
                                                 'td',
                                                 {
-                                                    className: 'px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white border-r border-gray-200 z-10 hover:bg-gray-100 transition-colors duration-150 cursor-pointer', // Added hover and cursor
+                                                    className: 'px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white border-r border-gray-200 z-10 hover:bg-gray-100 transition-colors duration-150 cursor-pointer flex items-center justify-between',
                                                     onDragOver: handleDragOver, // Make time header droppable
                                                     onDrop: (e) => handleDropOnTimeHeader(e, timeIdx) // Handle drop on time header
                                                 },
-                                                time
+                                                timeSlot.display
+                                                // Removed the "Remove" button here
                                             ),
                                             days.map((day, dayIdx) => {
-                                                const activityId = timetable[dayIdx][timeIdx];
+                                                const activityId = timetable[dayIdx] && timetable[dayIdx][timeIdx] !== undefined ? timetable[dayIdx][timeIdx] : null;
                                                 const activity = activities.find(a => a.id === activityId);
 
                                                 // Dynamically build the className string
@@ -523,7 +562,7 @@
                                                         onDrop: (e) => handleDrop(e, dayIdx, timeIdx),
                                                         onClick: () => { // Changed to explicit if statement
                                                             if (activityId) {
-                                                                handleEditActivityGrid(activityId, dayIdx, timeSlotIdx);
+                                                                handleEditActivityGrid(activityId, dayIdx, timeIdx);
                                                             }
                                                         },
                                                         className: tdClassName, // Use the constructed class name
