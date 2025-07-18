@@ -917,10 +917,9 @@
         };
 
 
-        window.onload = function() { // Ensure React is loaded before rendering
-            const rootElement = document.getElementById('root');
-            ReactDOM.createRoot(rootElement).render(React.createElement(App, null));
-        };
+        // Render the App component into the root div
+        const rootElement = document.getElementById('root');
+        ReactDOM.createRoot(rootElement).render(React.createElement(App, null));
     </script>
 </body>
 </html>
