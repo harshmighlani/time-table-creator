@@ -157,6 +157,9 @@
             const [modalDayIndex, setModalDayIndex] = React.useState(null); // Day index if editing from grid
             const [modalTimeSlotIndex, setModalTimeSlotIndex] = React.useState(null); // Time slot index if editing from grid
 
+            // State for showing export options modal
+            const [showExportOptions, setShowExportOptions] = React.useState(false);
+
             // Ref to store the currently dragged activity's ID and source (palette or grid)
             const draggedItem = React.useRef({ id: null, source: null, originalDay: null, originalTime: null });
 
@@ -418,6 +421,107 @@
                 }
             };
 
+            // Helper to format date for ICS (YYYYMMDDTHHMMSSZ)
+            const formatICSDate = (date) => {
+                return date.toISOString().replace(/[-:]|\.\d{3}/g, '');
+            };
+
+            // Helper to generate ICS content
+            const generateIcsContent = () => {
+                // Calculate the Monday of the current week
+                const today = new Date();
+                const dayOfWeek = today.getDay(); // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
+                const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+                const baseDate = new Date(today.setDate(diff));
+                baseDate.setHours(0, 0, 0, 0); // Set to midnight UTC
+
+                let icsContent = 'BEGIN:VCALENDAR\n';
+                icsContent += 'VERSION:2.0\n';
+                icsContent += 'PRODID:-//My TimeTable App//NONSGML v1.0//EN\n';
+                icsContent += 'CALSCALE:GREGORIAN\n';
+                icsContent += 'METHOD:PUBLISH\n';
+
+                days.forEach((day, dayIdx) => {
+                    timeSlots.forEach((timeSlot, timeIdx) => {
+                        const activityId = timetable[dayIdx] && timetable[dayIdx][timeIdx] !== undefined ? timetable[dayIdx][timeIdx] : null;
+
+                        if (activityId) {
+                            const activity = activities.find(a => a.id === activityId);
+                            if (activity) {
+                                const timeParts = timeSlot.raw.split(':');
+                                const hour = parseInt(timeParts[0]);
+                                const minute = parseInt(timeParts[1]);
+
+                                // Calculate start date for the event
+                                const eventStartDate = new Date(baseDate);
+                                eventStartDate.setDate(baseDate.getDate() + dayIdx); // Add days for Monday, Tuesday, etc.
+                                eventStartDate.setUTCHours(hour, minute, 0, 0); // Set time in UTC
+
+                                // Calculate end date (30 minutes after start)
+                                const eventEndDate = new Date(eventStartDate);
+                                eventEndDate.setUTCMinutes(eventEndDate.getUTCMinutes() + 30);
+
+                                icsContent += 'BEGIN:VEVENT\n';
+                                icsContent += 'UID:' + Date.now() + '-' + activity.id + '-' + dayIdx + '-' + timeIdx + '@my-timetable.com\n';
+                                icsContent += 'DTSTAMP:' + formatICSDate(new Date()) + '\n';
+                                icsContent += 'DTSTART:' + formatICSDate(eventStartDate) + '\n';
+                                icsContent += 'DTEND:' + formatICSDate(eventEndDate) + '\n';
+                                icsContent += 'SUMMARY:' + activity.name + '\n';
+                                icsContent += 'DESCRIPTION:' + activity.name + '\n';
+                                icsContent += 'END:VEVENT\n';
+                            }
+                        }
+                    });
+                });
+                icsContent += 'END:VCALENDAR';
+                return icsContent;
+            };
+
+            // Handle Export to Google Calendar (ICS)
+            const handleExportGoogleCalendar = () => {
+                const icsContent = generateIcsContent();
+                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'my_timetable_google.ics';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setShowExportOptions(false); // Close modal
+            };
+
+            // Handle Export to Outlook Calendar (ICS)
+            const handleExportOutlookCalendar = () => {
+                const icsContent = generateIcsContent(); // Same ICS content for Outlook
+                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'my_timetable_outlook.ics';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setShowExportOptions(false); // Close modal
+            };
+
+            // Handle Export to Apple Calendar (ICS)
+            const handleExportAppleCalendar = () => {
+                const icsContent = generateIcsContent(); // Same ICS content for Apple
+                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'my_timetable_apple.ics';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setShowExportOptions(false); // Close modal
+            };
+
 
             return React.createElement(
                 'div',
@@ -540,7 +644,6 @@
                                                     onDrop: (e) => handleDropOnTimeHeader(e, timeIdx) // Handle drop on time header
                                                 },
                                                 timeSlot.display
-                                                // Removed the "Remove" button here
                                             ),
                                             days.map((day, dayIdx) => {
                                                 const activityId = timetable[dayIdx] && timetable[dayIdx][timeIdx] !== undefined ? timetable[dayIdx][timeIdx] : null;
@@ -608,17 +711,34 @@
                             )
                         ),
                         React.createElement(
-                            'button',
-                            {
-                                onClick: handleExportPdf,
-                                className: 'mt-6 w-full bg-blue-600 text-white py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200 ease-in-out transform hover:scale-105 flex items-center justify-center text-lg font-semibold'
-                            },
+                            'div',
+                            { className: 'flex flex-col sm:flex-row gap-4 mt-6' }, // Container for buttons
                             React.createElement(
-                                'svg',
-                                { xmlns: 'http://www.w3.org/2000/svg', className: 'h-6 w-6 mr-2', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: '2' },
-                                React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 10v6m0 0l-3-3m3 3l3-3m2 8H5a2 2 0 01-2-2v-7a2 2 0 012-2h14a2 2 0 012 2v7a2 2 0 01-2 2z' })
+                                'button',
+                                {
+                                    onClick: () => setShowExportOptions(true), // Show export options modal
+                                    className: 'flex-1 bg-green-600 text-white py-3 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-200 ease-in-out transform hover:scale-105 flex items-center justify-center text-lg font-semibold'
+                                },
+                                React.createElement(
+                                    'svg',
+                                    { xmlns: 'http://www.w3.org/2000/svg', className: 'h-6 w-6 mr-2', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: '2' },
+                                    React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' })
+                                ),
+                                'Export Calendar'
                             ),
-                            'Export as PDF'
+                            React.createElement(
+                                'button',
+                                {
+                                    onClick: handleExportPdf,
+                                    className: 'flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-200 ease-in-out transform hover:scale-105 flex items-center justify-center text-lg font-semibold'
+                                },
+                                React.createElement(
+                                    'svg',
+                                    { xmlns: 'http://www.w3.org/2000/svg', className: 'h-6 w-6 mr-2', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: '2' },
+                                    React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 10v6m0 0l-3-3m3 3l3-3m2 8H5a2 2 0 01-2-2v-7a2 2 0 012-2h14a2 2 0 012 2v7a2 2 0 01-2 2z' })
+                                ),
+                                'Export as PDF'
+                            )
                         )
                     )
                 ),
@@ -629,7 +749,58 @@
                     onClose: () => setIsModalOpen(false),
                     onSave: handleSaveActivity,
                     onDelete: handleDeleteActivity
-                })
+                }),
+
+                // Export Options Modal
+                showExportOptions && React.createElement(
+                    'div',
+                    { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4' },
+                    React.createElement(
+                        'div',
+                        { className: 'bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition-all duration-300 scale-100' },
+                        React.createElement(
+                            'h2',
+                            { className: 'text-2xl font-bold text-green-700 mb-6 text-center' },
+                            'Export Calendar To:'
+                        ),
+                        React.createElement(
+                            'div',
+                            { className: 'flex flex-col gap-4' },
+                            React.createElement(
+                                'button',
+                                {
+                                    onClick: handleExportGoogleCalendar,
+                                    className: 'w-full bg-blue-500 text-white py-3 px-4 rounded-lg shadow-md hover:bg-blue-600 transition duration-200 ease-in-out transform hover:scale-105 font-semibold'
+                                },
+                                'Google Calendar (ICS)'
+                            ),
+                            React.createElement(
+                                'button',
+                                {
+                                    onClick: handleExportOutlookCalendar,
+                                    className: 'w-full bg-orange-500 text-white py-3 px-4 rounded-lg shadow-md hover:bg-orange-600 transition duration-200 ease-in-out transform hover:scale-105 font-semibold'
+                                },
+                                'Outlook Calendar (ICS)'
+                            ),
+                            React.createElement(
+                                'button',
+                                {
+                                    onClick: handleExportAppleCalendar,
+                                    className: 'w-full bg-gray-700 text-white py-3 px-4 rounded-lg shadow-md hover:bg-gray-800 transition duration-200 ease-in-out transform hover:scale-105 font-semibold'
+                                },
+                                'Apple Calendar (ICS)'
+                            ),
+                            React.createElement(
+                                'button',
+                                {
+                                    onClick: () => setShowExportOptions(false),
+                                    className: 'w-full bg-gray-300 text-gray-800 py-3 px-4 rounded-lg shadow-md hover:bg-gray-400 transition duration-200 ease-in-out transform hover:scale-105 font-semibold mt-4'
+                                },
+                                'Cancel'
+                            )
+                        )
+                    )
+                )
             );
         };
 
