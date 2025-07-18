@@ -297,7 +297,7 @@
                 } else { // Adding new activity
                     setActivities(prevActivities => [
                         ...prevActivities,
-                        { ...newActivity, id: `a${Date.now()}` } // Generate unique ID
+                        { ...newActivity, id: 'a' + Date.now() } // Generate unique ID
                     ]);
                 }
                 setIsModalOpen(false);
@@ -518,10 +518,14 @@
                                                 return React.createElement(
                                                     'td',
                                                     {
-                                                        key: `${dayIdx}-${timeIdx}`,
+                                                        key: String(dayIdx) + '-' + String(timeIdx), // Changed to String concatenation
                                                         onDragOver: handleDragOver,
                                                         onDrop: (e) => handleDrop(e, dayIdx, timeIdx),
-                                                        onClick: () => activityId && handleEditActivityGrid(activityId, dayIdx, timeSlotIdx),
+                                                        onClick: () => { // Changed to explicit if statement
+                                                            if (activityId) {
+                                                                handleEditActivityGrid(activityId, dayIdx, timeSlotIdx);
+                                                            }
+                                                        },
                                                         className: tdClassName, // Use the constructed class name
                                                         style: { backgroundColor: activity ? activity.color : 'transparent' }
                                                     },
