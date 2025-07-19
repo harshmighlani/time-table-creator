@@ -19,7 +19,6 @@
             height: 100%; /* Make root take full height */
             display: flex;
             flex-direction: column;
-            /* min-height: 100vh; Removed this */
             background: linear-gradient(to bottom right, #f3e8ff, #e0f2fe); /* Tailwind from-purple-100 to-blue-200 */
             padding: 1.5rem; /* Tailwind p-6 */
             font-family: 'Inter', sans-serif; /* Tailwind font-inter */
@@ -131,28 +130,50 @@
             // State for the main timetable title
             const [timetableTitle, setTimetableTitle] = React.useState('My TimeTable');
 
+            // Define a set of pastel colors for print-friendliness
+            const pastelColors = [
+                '#FFD1DC', // Light Pink
+                '#ADD8E6', // Light Blue
+                '#98FB98', // Pale Green
+                '#FFFFE0', // Light Yellow
+                '#E6E6FA', // Lavender
+                '#FFDAB9', // Peach Puff
+                '#AFEEEE', // Pale Turquoise
+                '#F0F8FF', // AliceBlue
+                '#FFE4E1', // Misty Rose
+                '#F5DEB3', // Wheat
+                '#E0FFFF', // Light Cyan
+                '#D8BFD8'  // Thistle
+            ];
+
+            // Function to get a random pastel color
+            const getRandomPastelColor = () => {
+                const randomIndex = Math.floor(Math.random() * pastelColors.length);
+                return pastelColors[randomIndex];
+            };
+
             // State for all available activities
             const [activities, setActivities] = React.useState([
-                { id: 'a1', name: 'Breakfast', color: '#FFDDC1' },
-                { id: 'a2', name: 'Outdoor Play', color: '#C1FFD1' },
-                { id: 'a3', name: 'Reading', color: '#D1C1FF' },
-                { id: 'a4', name: 'Maths Games', color: '#FFFDC1' },
-                { id: 'a5', name: 'Creative Time', color: '#FFC1F1' },
-                { id: 'a6', name: 'Lunch', color: '#C1FFFF' },
-                { id: 'a7', name: 'Family Outing', color: '#FFC1C1' },
-                { id: 'a8', name: 'Downtime', color: '#E0E0E0' },
-                { id: 'a9', name: 'Dinner', color: '#FFD1C1' },
-                { id: 'a10', name: 'Bedtime Routine', color: '#C1D1FF' },
-                { id: 'a11', name: 'Chores', color: '#D1FFC1' },
-                { id: 'a12', name: 'Free Play', color: '#F1C1FF' },
-                { id: 'a13', name: 'Art & Craft', color: '#FFC0CB' }, // Pink
-                { id: 'a14', name: 'Board Games', color: '#ADD8E6' }, // Light Blue
-                { id: 'a15', name: 'Library Visit', color: '#90EE90' }, // Light Green
-                { id: 'a16', name: 'Cooking/Baking', color: '#FFD700' }, // Gold
-                { id: 'a17', name: 'Nature Walk', color: '#8FBC8F' }, // Dark Sea Green
-                { id: 'a18', name: 'Movie Time', color: '#DDA0DD' }, // Plum
-                { id: 'a19', name: 'Music Practice', color: '#B0E0E6' }, // Powder Blue
-                { id: 'a20', name: 'Science Fun', color: '#FFB6C1' }, // Light Pink
+                { id: 'a1', name: 'Breakfast', color: pastelColors[0] },
+                { id: 'a2', name: 'Outdoor Play', color: pastelColors[1] },
+                { id: 'a3', name: 'Reading', color: pastelColors[2] },
+                { id: 'a4', name: 'Maths Games', color: pastelColors[3] },
+                { id: 'a5', name: 'Creative Time', color: pastelColors[4] },
+                { id: 'a6', name: 'Lunch', color: pastelColors[5] },
+                { id: 'a7', name: 'Family Outing', color: pastelColors[6] },
+                { id: 'a8', name: 'Downtime', color: pastelColors[7] },
+                { id: 'a9', name: 'Dinner', color: pastelColors[8] },
+                { id: 'a10', name: 'Bedtime Routine', color: pastelColors[9] },
+                { id: 'a11', name: 'Chores', color: pastelColors[10] },
+                { id: 'a12', name: 'Free Play', color: pastelColors[11] },
+                { id: 'a13', name: 'Art & Craft', color: getRandomPastelColor() },
+                { id: 'a14', name: 'Board Games', color: getRandomPastelColor() },
+                { id: 'a15', name: 'Library Visit', color: getRandomPastelColor() },
+                { id: 'a16', name: 'Cooking/Baking', color: getRandomPastelColor() },
+                { id: 'a17', name: 'Nature Walk', color: getRandomPastelColor() },
+                { id: 'a18', name: 'Movie Time', color: getRandomPastelColor() },
+                { id: 'a19', name: 'Music Practice', color: getRandomPastelColor() },
+                { id: 'a20', name: 'Science Fun', color: getRandomPastelColor() },
             ]);
 
             // State for the timetable grid: timetable[dayIndex][timeSlotIndex] = activityId
@@ -178,6 +199,9 @@
 
             // Ref for the timetable grid element to capture for PDF
             const timetableRef = React.useRef(null);
+
+            // Ref for the hidden file input for iCal import
+            const fileInputRef = React.useRef(null);
 
             // Handle drag start from activity palette
             const handleDragStartPalette = (e, activityId) => {
@@ -205,7 +229,7 @@
                 const activityId = draggedItem.current.id;
                 const source = draggedItem.current.source;
                 const originalDay = draggedItem.current.originalDay;
-                const originalTime = draggedItem.current.originalTime; // Fixed typo here
+                const originalTime = draggedItem.current.originalTime;
 
                 if (!activityId) return;
 
@@ -356,47 +380,35 @@
             };
 
             // Handle PDF export
-            const handleExportPdf = () => {
+            const handleExportPdf = async () => { // Make it async
                 if (timetableRef.current) {
-                    // Check if html2canvas and jsPDF are available globally
                     if (typeof window.html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
                         console.error('html2canvas or jsPDF not loaded. Please ensure their CDN links are included.');
                         return;
                     }
 
-                    // Identify blank rows (time slots)
-                    const rowsToHide = [];
-                    for (let timeIdx = 0; timeIdx < timeSlots.length; timeIdx++) {
-                        let isRowEmpty = true;
-                        for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
-                            if (timetable[dayIdx] && timetable[dayIdx][timeIdx] !== null) {
-                                isRowEmpty = false;
-                                break;
-                            }
-                        }
-                        if (isRowEmpty) {
-                            rowsToHide.push(timeIdx);
-                        }
-                    }
+                    const input = timetableRef.current;
 
-                    // Temporarily hide blank rows
-                    const tableRows = timetableRef.current.querySelectorAll('tbody tr');
-                    rowsToHide.forEach(timeIdx => {
-                        if (tableRows[timeIdx]) {
-                            tableRows[timeIdx].classList.add('hide-for-pdf');
-                        }
-                    });
+                    // Save original styles
+                    const originalOverflowX = input.style.overflowX;
+                    const originalOverflowY = input.style.overflowY;
+                    const originalHeight = input.style.height;
 
-                    // Temporarily adjust styles for better PDF rendering
-                    const originalOverflow = timetableRef.current.style.overflowX;
-                    const originalMinW = timetableRef.current.style.minWidth;
-                    timetableRef.current.style.overflowX = 'visible'; // Ensure all content is visible
-                    timetableRef.current.style.minWidth = 'fit-content'; // Prevent horizontal scrollbar issues
+                    // Temporarily make the element fully visible and allow it to expand
+                    input.style.overflowX = 'visible';
+                    input.style.overflowY = 'visible';
+                    input.style.height = 'auto'; // Let it take its natural height
 
-                    html2canvas(timetableRef.current, {
-                        scale: 2, // Increase scale for better resolution in PDF
-                        useCORS: true, // If you have external images, enable CORS
-                    }).then(canvas => {
+                    // Small delay to ensure DOM reflow after style changes
+                    await new Promise(resolve => setTimeout(resolve, 50));
+
+                    try {
+                        // Capture the entire element into a single large canvas
+                        const canvas = await html2canvas(input, {
+                            scale: 2, // High resolution
+                            useCORS: true,
+                        });
+
                         const imgData = canvas.toDataURL('image/png');
                         const pdf = new window.jspdf.jsPDF({
                             orientation: 'landscape', // Use landscape for wider timetable
@@ -404,33 +416,36 @@
                             format: 'a4'
                         });
 
-                        const imgWidth = pdf.internal.pageSize.getWidth();
-                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const pdfHeight = pdf.internal.pageSize.getHeight(); // A4 landscape height in pixels
 
-                        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                        pdf.save('my_timetable.pdf'); // Changed filename
+                        const imgHeight = (canvas.height * pdfWidth) / canvas.width; // Scaled image height to fit PDF width
 
-                        // Restore original styles and show hidden rows
-                        timetableRef.current.style.overflowX = originalOverflow;
-                        timetableRef.current.style.minWidth = originalMinW;
-                        rowsToHide.forEach(timeIdx => {
-                            if (tableRows[timeIdx]) {
-                                tableRows[timeIdx].classList.remove('hide-for-pdf');
-                            }
-                        });
-                    }).catch(error => {
-                        console.error('Error generating PDF:', error);
-                        // Ensure styles are restored and rows are shown even on error
-                        if (timetableRef.current) {
-                            timetableRef.current.style.overflowX = originalOverflow;
-                            timetableRef.current.style.minWidth = originalMinW;
+                        let heightLeft = imgHeight;
+                        let position = 0;
+
+                        // Add the first page
+                        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                        heightLeft -= pdfHeight;
+
+                        // Add subsequent pages if needed
+                        while (heightLeft > -pdfHeight) { // Changed condition to ensure last partial page is added
+                            position -= pdfHeight; // Move up for the next slice
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                            heightLeft -= pdfHeight;
                         }
-                        rowsToHide.forEach(timeIdx => {
-                            if (tableRows[timeIdx]) {
-                                tableRows[timeIdx].classList.remove('hide-for-pdf');
-                            }
-                        });
-                    });
+
+                        pdf.save('my_timetable.pdf');
+
+                    } catch (error) {
+                        console.error('Error generating PDF:', error);
+                    } finally {
+                        // Restore original styles
+                        input.style.overflowX = originalOverflowX;
+                        input.style.overflowY = originalOverflowY;
+                        input.style.height = originalHeight; // Restore original height
+                    }
                 }
             };
 
@@ -439,9 +454,8 @@
                 return date.toISOString().replace(/[-:]|\.\d{3}/g, '');
             };
 
-            // Helper to generate ICS content
+            // Helper to generate ICS content (now handles contiguous events)
             const generateIcsContent = () => {
-                // Calculate the Monday of the current week
                 const today = new Date();
                 const dayOfWeek = today.getDay(); // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
                 const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
@@ -455,36 +469,114 @@
                 icsContent += 'METHOD:PUBLISH\n';
 
                 days.forEach((day, dayIdx) => {
-                    timeSlots.forEach((timeSlot, timeIdx) => {
-                        const activityId = timetable[dayIdx] && timetable[dayIdx][timeIdx] !== undefined ? timetable[dayIdx][timeIdx] : null;
+                    let currentActivityId = null;
+                    let currentStartSlotIdx = -1;
 
-                        if (activityId) {
-                            const activity = activities.find(a => a.id === activityId);
-                            if (activity) {
-                                const timeParts = timeSlot.raw.split(':');
-                                const hour = parseInt(timeParts[0]);
-                                const minute = parseInt(timeParts[1]);
+                    for (let timeIdx = 0; timeIdx < timeSlots.length; timeIdx++) {
+                        const activityIdInSlot = timetable[dayIdx] && timetable[dayIdx][timeIdx] !== undefined ? timetable[dayIdx][timeIdx] : null;
 
-                                // Calculate start date for the event
-                                const eventStartDate = new Date(baseDate);
-                                eventStartDate.setDate(baseDate.getDate() + dayIdx); // Add days for Monday, Tuesday, etc.
-                                eventStartDate.setUTCHours(hour, minute, 0, 0); // Set time in UTC
+                        if (activityIdInSlot && activityIdInSlot === currentActivityId) {
+                            // Activity continues, do nothing, will extend DTEND later
+                        } else {
+                            // Activity changed or slot is empty, so finalize previous event
+                            if (currentActivityId !== null && currentStartSlotIdx !== -1) {
+                                const activity = activities.find(a => a.id === currentActivityId);
+                                if (activity) {
+                                    const startSlot = timeSlots[currentStartSlotIdx];
+                                    const endSlotIndexForDTEND = timeIdx; // The end of the current contiguous block is the start of this slot
 
-                                // Calculate end date (30 minutes after start)
-                                const eventEndDate = new Date(eventStartDate);
-                                eventEndDate.setUTCMinutes(eventEndDate.getUTCMinutes() + 30);
+                                    const startParts = startSlot.raw.split(':');
+                                    const startHour = parseInt(startParts[0]);
+                                    const startMinute = parseInt(startParts[1]);
 
-                                icsContent += 'BEGIN:VEVENT\n';
-                                icsContent += 'UID:' + Date.now() + '-' + activity.id + '-' + dayIdx + '-' + timeIdx + '@my-timetable.com\n';
-                                icsContent += 'DTSTAMP:' + formatICSDate(new Date()) + '\n';
-                                icsContent += 'DTSTART:' + formatICSDate(eventStartDate) + '\n';
-                                icsContent += 'DTEND:' + formatICSDate(eventEndDate) + '\n';
-                                icsContent += 'SUMMARY:' + activity.name + '\n';
-                                icsContent += 'DESCRIPTION:' + activity.name + '\n';
-                                icsContent += 'END:VEVENT\n';
+                                    const eventStartDate = new Date(baseDate);
+                                    eventStartDate.setDate(baseDate.getDate() + dayIdx);
+                                    eventStartDate.setUTCHours(startHour, startMinute, 0, 0);
+
+                                    // Calculate DTEND: it's the start time of the *next* slot after the contiguous block ends
+                                    let endHour, endMinute;
+                                    if (endSlotIndexForDTEND < timeSlots.length) {
+                                        // If there's a next slot, use its start time as DTEND
+                                        const endSlotParts = timeSlots[endSlotIndexForDTEND].raw.split(':');
+                                        endHour = parseInt(endSlotParts[0]);
+                                        endMinute = parseInt(endSlotParts[1]);
+                                    } else {
+                                        // If this is the last slot of the day, DTEND is 30 mins after its start
+                                        const lastSlotRaw = timeSlots[timeSlots.length - 1].raw;
+                                        const lastSlotParts = lastSlotRaw.split(':');
+                                        endHour = parseInt(lastSlotParts[0]);
+                                        endMinute = parseInt(lastSlotParts[1]) + 30;
+                                        if (endMinute >= 60) {
+                                            endHour += Math.floor(endMinute / 60);
+                                            endMinute %= 60;
+                                        }
+                                    }
+
+                                    const eventEndDate = new Date(baseDate);
+                                    eventEndDate.setDate(baseDate.getDate() + dayIdx);
+                                    eventEndDate.setUTCHours(endHour, endMinute, 0, 0);
+
+                                    icsContent += 'BEGIN:VEVENT\n';
+                                    icsContent += 'UID:' + Date.now() + '-' + activity.id + '-' + dayIdx + '-' + currentStartSlotIdx + '@my-timetable.com\n';
+                                    icsContent += 'DTSTAMP:' + formatICSDate(new Date()) + '\n';
+                                    icsContent += 'DTSTART:' + formatICSDate(eventStartDate) + '\n';
+                                    icsContent += 'DTEND:' + formatICSDate(eventEndDate) + '\n';
+                                    icsContent += 'SUMMARY:' + activity.name + '\n';
+                                    icsContent += 'DESCRIPTION:' + activity.name + '\n';
+                                    icsContent += 'END:VEVENT\n';
+                                }
+                            }
+
+                            // Start new event if current slot has an activity
+                            if (activityIdInSlot) {
+                                currentActivityId = activityIdInSlot;
+                                currentStartSlotIdx = timeIdx;
+                            } else {
+                                currentActivityId = null;
+                                currentStartSlotIdx = -1;
                             }
                         }
-                    });
+                    }
+
+                    // After loop, finalize any remaining active event (for the last event of the day)
+                    if (currentActivityId !== null && currentStartSlotIdx !== -1) {
+                        const activity = activities.find(a => a.id === currentActivityId);
+                        if (activity) {
+                            const startSlot = timeSlots[currentStartSlotIdx];
+
+                            const startParts = startSlot.raw.split(':');
+                            const startHour = parseInt(startParts[0]);
+                            const startMinute = parseInt(startParts[1]);
+
+                            // DTEND for the last event of the day is 30 minutes after the start of the last occupied slot
+                            const lastOccupiedTimeIdx = timeSlots.length - 1; // Assuming the last activity goes to the end of the last slot
+                            const lastSlotRaw = timeSlots[lastOccupiedTimeIdx].raw;
+                            const lastSlotParts = lastSlotRaw.split(':');
+                            let endHour = parseInt(lastSlotParts[0]);
+                            let endMinute = parseInt(lastSlotParts[1]) + 30;
+                            if (endMinute >= 60) {
+                                endHour += Math.floor(endMinute / 60);
+                                endMinute %= 60;
+                            }
+
+                            const eventStartDate = new Date(baseDate);
+                            eventStartDate.setDate(baseDate.getDate() + dayIdx);
+                            eventStartDate.setUTCHours(startHour, startMinute, 0, 0);
+
+                            const eventEndDate = new Date(baseDate);
+                            eventEndDate.setDate(baseDate.getDate() + dayIdx);
+                            eventEndDate.setUTCHours(endHour, endMinute, 0, 0);
+
+                            icsContent += 'BEGIN:VEVENT\n';
+                            icsContent += 'UID:' + Date.now() + '-final-' + activity.id + '-' + dayIdx + '-' + currentStartSlotIdx + '@my-timetable.com\n';
+                            icsContent += 'DTSTAMP:' + formatICSDate(new Date()) + '\n';
+                            icsContent += 'DTSTART:' + formatICSDate(eventStartDate) + '\n';
+                            icsContent += 'DTEND:' + formatICSDate(eventEndDate) + '\n';
+                            icsContent += 'SUMMARY:' + activity.name + '\n';
+                            icsContent += 'DESCRIPTION:' + activity.name + '\n';
+                            icsContent += 'END:VEVENT\n';
+                        }
+                    }
                 });
                 icsContent += 'END:VCALENDAR';
                 return icsContent;
@@ -533,6 +625,149 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 setShowExportOptions(false); // Close modal
+            };
+
+            // Handle iCal file import
+            const handleFileChange = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const icalContent = e.target.result;
+                        try {
+                            const parsedEvents = parseIcalContent(icalContent);
+                            addIcalEventsToTimetable(parsedEvents);
+                            // Use a custom message box instead of alert
+                            console.log('iCal file imported successfully!');
+                            // You might want to show a success message to the user here
+                        } catch (error) {
+                            console.error('Error importing iCal:', error);
+                            // You might want to show an error message to the user here
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            // Basic iCal parsing logic (for VEVENT, SUMMARY, DTSTART, DTEND)
+            const parseIcalContent = (icalContent) => {
+                const events = [];
+                const lines = icalContent.split(/\r\n|\n/);
+                let currentEvent = null;
+
+                for (const line of lines) {
+                    if (line.startsWith('BEGIN:VEVENT')) {
+                        currentEvent = {};
+                    } else if (line.startsWith('END:VEVENT')) {
+                        if (currentEvent && currentEvent.SUMMARY && currentEvent.DTSTART && currentEvent.DTEND) {
+                            events.push(currentEvent);
+                        }
+                        currentEvent = null;
+                    } else if (currentEvent) {
+                        const parts = line.split(':');
+                        if (parts.length > 1) {
+                            const key = parts[0].split(';')[0]; // Handle properties with parameters like DTSTART;TZID=...
+                            const value = parts.slice(1).join(':');
+                            currentEvent[key] = value;
+                        }
+                    }
+                }
+                return events;
+            };
+
+            // Add parsed iCal events to the timetable
+            const addIcalEventsToTimetable = (icalEvents) => {
+                setTimetable(prevTimetable => {
+                    const newTimetable = prevTimetable.map(row => [...row]);
+                    const newActivities = [...activities];
+                    let activityIdCounter = Date.now();
+
+                    icalEvents.forEach(event => {
+                        const startDateStr = event.DTSTART;
+                        const endDateStr = event.DTEND;
+                        const summary = event.SUMMARY;
+
+                        // Basic parsing of DTSTART/DTEND (YYYYMMDDTHHMMSSZ)
+                        // This assumes UTC or local time without complex timezone handling
+                        const year = parseInt(startDateStr.substring(0, 4));
+                        const month = parseInt(startDateStr.substring(4, 6)) - 1; // Month is 0-indexed
+                        const day = parseInt(startDateStr.substring(6, 8));
+                        const hour = parseInt(startDateStr.substring(9, 11));
+                        const minute = parseInt(startDateStr.substring(11, 13));
+
+                        const startDateTime = new Date(Date.UTC(year, month, day, hour, minute));
+
+                        // Find the day index (0 for Monday, etc.)
+                        // Adjust for Sunday (0) becoming 6, Monday (1) becoming 0
+                        const dayIdx = (startDateTime.getUTCDay() + 6) % 7; // Convert Sun-Sat (0-6) to Mon-Sun (0-6)
+
+                        // Find the time slot index
+                        let timeSlotIdx = -1;
+                        for (let i = 0; i < timeSlots.length; i++) {
+                            const slotHour = parseInt(timeSlots[i].raw.split(':')[0]);
+                            const slotMinute = parseInt(timeSlots[i].raw.split(':')[1]);
+                            if (startDateTime.getUTCHours() === slotHour && startDateTime.getUTCMinutes() === slotMinute) {
+                                timeSlotIdx = i;
+                                break;
+                            }
+                        }
+
+                        if (dayIdx >= 0 && dayIdx < days.length && timeSlotIdx !== -1) {
+                            // Check if activity already exists or create new
+                            let existingActivity = newActivities.find(a => a.name === summary);
+                            let activityToAddId;
+
+                            if (existingActivity) {
+                                activityToAddId = existingActivity.id;
+                            } else {
+                                // Create a new activity for the imported event
+                                const newActivity = {
+                                    id: 'a' + activityIdCounter++,
+                                    name: summary,
+                                    color: getRandomPastelColor() // Use pastel color for imported activities
+                                };
+                                newActivities.push(newActivity);
+                                activityToAddId = newActivity.id;
+                            }
+
+                            // Place the activity in the timetable
+                            // Handle duration: fill multiple slots if DTEND is later than DTSTART + 30min
+                            const endDateTime = new Date(Date.UTC(
+                                parseInt(endDateStr.substring(0, 4)),
+                                parseInt(endDateStr.substring(4, 6)) - 1,
+                                parseInt(endDateStr.substring(6, 8)),
+                                parseInt(endDateStr.substring(9, 11)),
+                                parseInt(endDateStr.substring(11, 13))
+                            ));
+
+                            let currentSlotTime = new Date(startDateTime);
+                            let currentSlotIdx = timeSlotIdx;
+
+                            while (currentSlotTime < endDateTime && currentSlotIdx < timeSlots.length) {
+                                if (newTimetable[dayIdx]) { // Ensure day exists
+                                    newTimetable[dayIdx][currentSlotIdx] = activityToAddId;
+                                }
+
+                                // Move to the next 30-minute slot
+                                currentSlotTime.setUTCMinutes(currentSlotTime.getUTCMinutes() + 30);
+                                currentSlotIdx++;
+
+                                // Break if we've gone past the end of the day's time slots
+                                if (currentSlotIdx >= timeSlots.length) break;
+
+                                // Check if the next slot in timeSlots matches currentSlotTime
+                                const nextSlotHour = parseInt(timeSlots[currentSlotIdx].raw.split(':')[0]);
+                                const nextSlotMinute = parseInt(timeSlots[currentSlotIdx].raw.split(':')[1]);
+                                if (currentSlotTime.getUTCHours() !== nextSlotHour || currentSlotTime.getUTCMinutes() !== nextSlotMinute) {
+                                    // This means our 30-minute increment doesn't align with defined timeSlots, stop.
+                                    break;
+                                }
+                            }
+                        }
+                    });
+                    setActivities(newActivities); // Update activities state with new ones
+                    return newTimetable;
+                });
             };
 
 
@@ -755,7 +990,27 @@
                                     React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 10v6m0 0l-3-3m3 3l3-3m2 8H5a2 2 0 01-2-2v-7a2 2 0 012-2h14a2 2 0 012 2v7a2 2 0 01-2 2z' })
                                 ),
                                 'Export as PDF'
-                            )
+                            ),
+                             React.createElement( // New Import iCal button
+                                'button',
+                                {
+                                    onClick: () => fileInputRef.current.click(),
+                                    className: 'flex-1 bg-purple-600 text-white py-3 px-4 rounded-lg shadow-md hover:bg-purple-700 transition duration-200 ease-in-out transform hover:scale-105 flex items-center justify-center text-lg font-semibold'
+                                },
+                                React.createElement(
+                                    'svg',
+                                    { xmlns: 'http://www.w3.org/2000/svg', className: 'h-6 w-6 mr-2', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: '2' },
+                                    React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' })
+                                ),
+                                'Import iCal'
+                            ),
+                            React.createElement('input', { // Hidden file input
+                                type: 'file',
+                                ref: fileInputRef,
+                                onChange: handleFileChange,
+                                accept: '.ics',
+                                style: { display: 'none' }
+                            })
                         )
                     )
                 ),
@@ -824,7 +1079,7 @@
         // Activity Modal Component
         const ActivityModal = ({ activity, onClose, onSave, onDelete }) => {
             const [name, setName] = React.useState(activity ? activity.name : '');
-            const [color, setColor] = React.useState(activity ? activity.color : '#FFDDC1'); // Default color
+            const [color, setColor] = React.useState(activity ? activity.color : getRandomPastelColor()); // Default color is now pastel
 
             const handleSave = () => {
                 if (name.trim() === '') {
