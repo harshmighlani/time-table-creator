@@ -1020,7 +1020,8 @@
                     activity: editingActivity,
                     onClose: () => setIsModalOpen(false),
                     onSave: handleSaveActivity,
-                    onDelete: handleDeleteActivity
+                    onDelete: handleDeleteActivity,
+                    getRandomPastelColor: getRandomPastelColor // Pass the function as a prop
                 }),
 
                 // Export Options Modal
@@ -1077,9 +1078,9 @@
         };
 
         // Activity Modal Component
-        const ActivityModal = ({ activity, onClose, onSave, onDelete }) => {
+        const ActivityModal = ({ activity, onClose, onSave, onDelete, getRandomPastelColor }) => { // Accept getRandomPastelColor as a prop
             const [name, setName] = React.useState(activity ? activity.name : '');
-            const [color, setColor] = React.useState(activity ? activity.color : getRandomPastelColor()); // Default color is now pastel
+            const [color, setColor] = React.useState(activity ? activity.color : getRandomPastelColor()); // Use the prop here
 
             const handleSave = () => {
                 if (name.trim() === '') {
@@ -1097,14 +1098,14 @@
 
             return React.createElement(
                 'div',
-                { className: 'fixed inset-0 bg-black bg-opacity50 flex items-center justify-center z-50 p-4' },
+                { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4' },
                 React.createElement(
                     'div',
                     { className: 'bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100' },
                     React.createElement(
                         'h2',
                         { className: 'text-2xl font-bold text-purple-700 mb-6' },
-                        activity ? 'Edit Activity' : 'Add New Activity'
+                        activity ? 'Edit Activity' : 'Add Activity'
                     ),
                     React.createElement(
                         'div',
